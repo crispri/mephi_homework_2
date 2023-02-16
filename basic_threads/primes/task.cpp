@@ -2,11 +2,11 @@
 #include <vector>
 #include "task.h"
 using namespace std::chrono_literals;
-PrimeNumbersSet::PrimeNumbersSet(){
-    nanoseconds_waiting_mutex_=0;
-    nanoseconds_under_mutex_=0;
+PrimeNumbersSet::PrimeNumbersSet() {
+    nanoseconds_waiting_mutex_= 0, nanoseconds_under_mutex_=0;
 }
 void PrimeNumbersSet::AddPrimesInRange(uint64_t from, uint64_t to) {
+    std::vector<uint64_t> local;
     for(uint64_t it = from; it<to; ++it){
         bool flag = true;
         for(int i = 2;i*i<=it; ++i){
@@ -15,20 +15,33 @@ void PrimeNumbersSet::AddPrimesInRange(uint64_t from, uint64_t to) {
                 break;}
         }
         if (flag and it!= 0 and it!=1){
-            auto start_func = std::chrono::high_resolution_clock::now();
-            set_mutex_.lock();
-            auto start_lock = std::chrono::high_resolution_clock::now();
-            nanoseconds_waiting_mutex_  += (start_lock - start_func).count();
-            primes_.insert(it);
-            auto end_lock = std::chrono::high_resolution_clock::now();
-            set_mutex_.unlock();
-            nanoseconds_under_mutex_ += (end_lock - start_lock).count();
+            local.push_back(it);
+            /* auto start_func = std::chrono::high_resolution_clock::now();
+             set_mutex_.lock();
+             auto start_lock = std::chrono::high_resolution_clock::now();
+             nanoseconds_waiting_mutex_  += (start_lock - start_func).count();
+             primes_.insert(it);
+             auto end_lock = std::chrono::high_resolution_clock::now();
+             set_mutex_.unlock();
+             nanoseconds_under_mutex_ += (end_lock - start_lock).count();*/
         }
     }
+    auto start_func = std::chrono::high_resolution_clock::now();
+    set_mutex_.lock();
+    auto start_lock = std::chrono::high_resolution_clock::now();
+    nanoseconds_waiting_mutex_  = (start_lock - start_func).count();
+    for(auto& it: local){
+        primes_.insert(it);
+    }
+    auto end_lock = std::chrono::high_resolution_clock::now();
+    set_mutex_.unlock();
+    nanoseconds_under_mutex_ = (end_lock - start_lock).count();
 }
 
 uint64_t PrimeNumbersSet::GetMaxPrimeNumber() const {
     std::lock_guard g(set_mutex_);
+    if(primes_.empty())
+        return 2005;
     return *(--primes_.end());
 }
 
@@ -59,3 +72,6 @@ std::chrono::nanoseconds PrimeNumbersSet::GetTotalTimeWaitingForMutex() const {
 bool PrimeNumbersSet::IsPrime(uint64_t number) const {
     return primes_.find(number)!=primes_.end();
 }
+
+
+
