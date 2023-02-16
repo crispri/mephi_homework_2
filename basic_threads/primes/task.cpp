@@ -7,7 +7,6 @@ PrimeNumbersSet::PrimeNumbersSet(){
     nanoseconds_under_mutex_=0;
 }
 void PrimeNumbersSet::AddPrimesInRange(uint64_t from, uint64_t to) {
-    std::vector<uint64_t> local;
     for(uint64_t it = from; it<to; ++it){
         bool flag = true;
         for(int i = 2;i*i<=it; ++i){
@@ -16,7 +15,6 @@ void PrimeNumbersSet::AddPrimesInRange(uint64_t from, uint64_t to) {
                 break;}
         }
         if (flag and it!= 0 and it!=1){
-            local.push_back(it);
             auto start_func = std::chrono::high_resolution_clock::now();
             set_mutex_.lock();
             auto start_lock = std::chrono::high_resolution_clock::now();
