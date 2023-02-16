@@ -35,7 +35,6 @@ void PrimeNumbersSet::AddPrimesInRange(uint64_t from, uint64_t to) {
     set_mutex_.unlock();
     nanoseconds_under_mutex_ = (end_lock - start_lock).count();*/
 }
-
 uint64_t PrimeNumbersSet::GetMaxPrimeNumber() const {
     std::lock_guard g(set_mutex_);
     if(primes_.empty())
