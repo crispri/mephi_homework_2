@@ -43,7 +43,6 @@ public:
         Count_ = 0;
         return Data_;
     }
-
 private:
     std::condition_variable Cv_Full_;
     std::condition_variable Cv_Empty_;
