@@ -27,7 +27,6 @@ public:
     }
 
     T Get(std::chrono::milliseconds timeout = std::chrono::milliseconds(0)) {
-
         auto start = std::chrono::steady_clock::now();
         std::unique_lock lock(Mutex_);
         while (Count_ == 0) {
