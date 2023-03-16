@@ -36,14 +36,14 @@ public:
                     if(Terminate_without_Wait){
                         while(!Tasks_Queue_.empty())
                             Tasks_Queue_.pop();
-                        Mutex_.unlock();
+                        lock.unlock();
                         break;
                     }
                     else {
                         if(!Tasks_Queue_.empty()) {
                             std::function<void()> task = std::move( Tasks_Queue_.front());
                             Tasks_Queue_.pop();
-                            Mutex_.unlock();
+                            lock.unlock();
                             task();
 
                         }
@@ -87,6 +87,7 @@ public:
         std::unique_lock<std::mutex> lock(Mutex_);
         return Tasks_Queue_.size();
     }
+
 private:
     mutable std::mutex Mutex_;
     std::vector<std::thread> Pool_;
