@@ -45,7 +45,6 @@ public:
                     was_Read = true;
                     Cv_Readble.notify_one();
                     throw TimeOut();
-
                 }
             }
         }
