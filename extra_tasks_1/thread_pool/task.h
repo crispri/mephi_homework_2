@@ -73,7 +73,7 @@ public:
         if(!wait){
             Terminate_without_Wait = true;
         }
-        Mutex_.unlock();
+        lock.unlock();
         for(auto& it:Pool_){
             it.join();
         }
