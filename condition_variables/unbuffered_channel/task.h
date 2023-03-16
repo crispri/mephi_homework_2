@@ -28,12 +28,11 @@ public:
             Cv_Readble.wait(lock);
         }
         was_Read = false;
-
     }
 
     T Get(std::chrono::milliseconds timeout = std::chrono::milliseconds(0)) {
-        auto start = std::chrono::steady_clock::now();
         std::unique_lock lock(Mutex_);
+        auto start = std::chrono::steady_clock::now();
         while (Count_ == 0) {
             if (timeout == std::chrono::milliseconds(0)) {
                 Cv_Empty_.wait(lock);
