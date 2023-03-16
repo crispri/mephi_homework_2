@@ -29,7 +29,6 @@ public:
             Cv_Readble.wait(lock);
         }
     }
-
     T Get(std::chrono::milliseconds timeout = std::chrono::milliseconds(0)) {
         auto start = std::chrono::steady_clock::now();
         std::unique_lock lock(Mutex_);
