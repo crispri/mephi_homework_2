@@ -44,7 +44,6 @@ public:
                     Cv_Full_.notify_one();
                     Cv_Readble.notify_one();
                     throw TimeOut();
-
                 }
             }
         }
