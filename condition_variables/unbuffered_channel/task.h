@@ -28,6 +28,7 @@ public:
         while(!was_Read){
             Cv_Readble.wait(lock);
         }
+        was_Read = false;
 
     }
 
