@@ -23,16 +23,16 @@ public:
         }
         Data_ = data;
         Count_ = 1;
-        was_Read = false;
         Cv_Empty_.notify_one();
+        was_Read = false;
         while(!was_Read){
             Cv_Readble.wait(lock);
         }
     }
 
     T Get(std::chrono::milliseconds timeout = std::chrono::milliseconds(0)) {
-        auto start = std::chrono::steady_clock::now();
         std::unique_lock lock(Mutex_);
+        auto start = std::chrono::steady_clock::now();
         while (Count_ == 0) {
             if (timeout == std::chrono::milliseconds(0)) {
                 Cv_Empty_.wait(lock);
@@ -40,17 +40,18 @@ public:
                 if (Cv_Empty_.wait_until(lock, timeout + start) == std::cv_status::timeout) {
                     Count_ = 0;
                     was_Read = true;
-                    Cv_Full_.notify_one();
                     Cv_Readble.notify_one();
+                    Cv_Full_.notify_one();
                     throw TimeOut();
                 }
             }
         }
+        T data = Data_;
         Count_ = 0;
         was_Read = true;
-        Cv_Full_.notify_one();
         Cv_Readble.notify_one();
-        return Data_;
+        Cv_Full_.notify_one();
+        return data;
     }
 private:
     std::condition_variable Cv_Full_;
