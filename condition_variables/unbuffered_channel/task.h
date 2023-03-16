@@ -23,12 +23,13 @@ public:
         }
         Data_ = data;
         Count_ = 1;
-        Cv_Empty_.notify_one();
         was_Read = false;
+        Cv_Empty_.notify_one();
         while(!was_Read){
             Cv_Readble.wait(lock);
         }
     }
+
     T Get(std::chrono::milliseconds timeout = std::chrono::milliseconds(0)) {
         auto start = std::chrono::steady_clock::now();
         std::unique_lock lock(Mutex_);
@@ -60,4 +61,3 @@ private:
     int Count_ = 0;
     T Data_;
 };
-
