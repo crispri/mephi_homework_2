@@ -28,7 +28,7 @@ public:
         while(!was_Read){
             Cv_Readble.wait(lock);
         }
-        was_Read = false;
+        // was_Read = false;
 
     }
 
@@ -64,3 +64,4 @@ private:
     int Count_ = 0;
     T Data_;
 };
+
