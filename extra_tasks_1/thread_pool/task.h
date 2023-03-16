@@ -87,7 +87,6 @@ public:
         std::unique_lock<std::mutex> lock(Mutex_);
         return Tasks_Queue_.size();
     }
-
 private:
     mutable std::mutex Mutex_;
     std::vector<std::thread> Pool_;
