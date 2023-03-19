@@ -26,7 +26,6 @@ public:
         SharedCount_-=1;
         if(SharedCount_ == 0)
             Available_.notify_all();
-
     }
 private:
     std::mutex Mutex_;
