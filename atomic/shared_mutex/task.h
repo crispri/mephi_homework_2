@@ -1,36 +1,31 @@
 #pragma once
 #include <atomic>
-
 class SharedMutex {
 public:
     void lock() {
-        if(Exclusive_Count_.load() + Shared_Count_.load() == 0){
-            Exclusive_Count_.fetch_add(1);
-            Available_.store(1);
+        int status = 0;
+        while(!Shared_Count_.compare_exchange_strong(status,-1) == 0){
+            status = 0;
         }
     }
 
     void unlock() {
-        Exclusive_Count_.fetch_sub(1);
-        Available_.store(0);
+        Shared_Count_.store(0);
     }
 
     void lock_shared() {
-        if(Exclusive_Count_.load() == 0){
-            Shared_Count_.fetch_add(1);
-            Available_.store(1);
+        int status = Shared_Count_.load();
+        while(!Shared_Count_.compare_exchange_strong(status,status+1)){
+            while(status == -1){
+                status = Shared_Count_.load();
+            }
         }
     }
-
     void unlock_shared() {
         Shared_Count_.fetch_sub(1);
-        if(Shared_Count_.load() == 0)
-            Available_.store(0);
     }
 
 private:
-    std::atomic<int> Available_{0};
-    std::atomic<int> Exclusive_Count_{0};
     std::atomic<int> Shared_Count_{0};
 };
 //fetch_add <=> +=1
