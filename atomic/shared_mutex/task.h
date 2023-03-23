@@ -1,35 +1,40 @@
 #pragma once
-#include <mutex>
-#include <condition_variable>
+#include <atomic>
+
 class SharedMutex {
 public:
     void lock() {
-        std::unique_lock<std::mutex> lock(Mutex_);
-        while(SharedCount_+ExclusiveCount_ !=0)
-            Available_.wait(lock);
-        ExclusiveCount_+=1;
-    }
-    void unlock() {
-        std::unique_lock<std::mutex> lock(Mutex_);
-        ExclusiveCount_ -=1;
-        Available_.notify_all();
-    }
-    void lock_shared() {
-        std::unique_lock<std::mutex> lock(Mutex_);
-        while (ExclusiveCount_!=0){
-            Available_.wait(lock);
+        if(Exclusive_Count_.load() + Shared_Count_.load() == 0){
+            Exclusive_Count_.fetch_add(1);
+            Available_.store(1);
         }
-        SharedCount_+=1;
     }
+
+    void unlock() {
+        Exclusive_Count_.fetch_sub(1);
+        Available_.store(0);
+    }
+
+    void lock_shared() {
+        if(Exclusive_Count_.load() == 0){
+            Shared_Count_.fetch_add(1);
+            Available_.store(1);
+        }
+    }
+
     void unlock_shared() {
-        std::unique_lock<std::mutex> lock(Mutex_);
-        SharedCount_-=1;
-        if(SharedCount_ == 0)
-            Available_.notify_all();
+        Shared_Count_.fetch_sub(1);
+        if(Shared_Count_.load() == 0)
+            Available_.store(0);
     }
+
 private:
-    std::mutex Mutex_;
-    std::condition_variable Available_;
-    int ExclusiveCount_ = 0;
-    int SharedCount_ = 0;
+    std::atomic<int> Available_{0};
+    std::atomic<int> Exclusive_Count_{0};
+    std::atomic<int> Shared_Count_{0};
 };
+//fetch_add <=> +=1
+//exchange -> возвращает старое значени, переменную заменяет на новое
+// store -> заменяет старое значение на новое
+// load -> выгрузка значения из atomic
+//compare_exchange_storg -> сравнивает object и old_val, если равны то object = new_val
