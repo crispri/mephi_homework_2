@@ -4,7 +4,7 @@ class SharedMutex {
 public:
     void lock() {
         int status = 0;
-        while(!Shared_Count_.compare_exchange_strong(status,-1) == 0){
+        while(!Shared_Count_.compare_exchange_strong(status,-1)){
             status = 0;
         }
     }
