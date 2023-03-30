@@ -46,7 +46,7 @@ public:
         }
 
         T operator *() const {
-            //std::unique_lock<std::mutex> lock(node->Mutex_);
+            std::unique_lock<std::mutex> lock(node->Mutex_);
             return node->val;
         }
 
@@ -56,7 +56,7 @@ public:
         }
 
         const T* operator ->() const {
-            // std::unique_lock<std::mutex> lock(node->Mutex_);
+            std::unique_lock<std::mutex> lock(node->Mutex_);
             return &(node->val);
         }
 
@@ -88,11 +88,13 @@ public:
 
         bool operator ==(const Iterator& rhs) const {
             //std::unique_lock<std::mutex> lock(node->Mutex_);
+            std::unique_lock<std::mutex> rhslock(rhs.node->Mutex_);
             return node == rhs.node;
         }
 
         bool operator !=(const Iterator& rhs) const {
             //std::unique_lock<std::mutex> lock(node->Mutex_);
+            std::unique_lock<std::mutex> rhslock(rhs.node->Mutex_);
             return node!=rhs.node;
         }
         TNode<T>* Get() {
