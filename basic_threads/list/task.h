@@ -7,29 +7,25 @@
 #include <atomic>
 #include <vector>
 #include <iostream>
-#include <list>
 /*
  * Потокобезопасный связанный список.
  */
 template<typename T>
-struct Node{
-    Node<T>* prev;
-    Node<T>* next;
+struct TNode{
+    TNode() = default;
+    TNode(TNode* p, TNode* n, const T& v):prev(p), next(n), val(v){}
+    TNode* prev;
+    TNode* next;
     T val;
-    explicit Node(Node<T>* prev, Node<T>* next, const T& val):prev(prev), next(next), val(val){}
-    Node() = default;
-    mutable std::shared_mutex Mutex_;
+    mutable std::mutex Mutex_;
 };
 template<typename T>
 class ThreadSafeList {
 private:
-    Node<T>* Head;
-    Node<T>* Tail;
-    mutable std::mutex M_;
+    TNode<T>* Head;
+    TNode<T>* Tail; //элемент после последнего в списке
 public:
-    ThreadSafeList():Head(nullptr), Tail(nullptr){
-
-    }
+    ThreadSafeList():Head(nullptr),Tail(nullptr){}
     /*
      * Класс-итератор, позволяющий обращаться к элементам списка без необходимости использовать мьютекс.
      * При этом должен гарантироваться эксклюзивный доступ потока, в котором был создан итератор, к данным, на которые
@@ -43,70 +39,67 @@ public:
         using reference = T&;
         using difference_type = std::ptrdiff_t;
         using iterator_category = std::bidirectional_iterator_tag;
-        Iterator(Node<T>* cur_):node_(cur_){}
+        Iterator(TNode<T>* node):node(node){}
         T& operator *() {
-            std::shared_lock lock(node_->Mutex_);
-            return node_->val;
+            std::unique_lock<std::mutex> lock(node->Mutex_);
+            return node->val;
         }
 
         T operator *() const {
-            std::shared_lock lock(node_->Mutex_);
-            return node_->val;
+            std::unique_lock<std::mutex> lock(node->Mutex_);
+            return node->val;
         }
 
         T* operator ->() {
-            std::shared_lock lock(node_->Mutex_);
-            return &(node_->val);
+            std::unique_lock<std::mutex> lock(node->Mutex_);
+            return &(node->val);
         }
 
         const T* operator ->() const {
-            std::shared_lock lock(node_->Mutex_);
-            return &(node_->val);
+            std::unique_lock<std::mutex> lock(node->Mutex_);
+            return &(node->val);
         }
 
         Iterator& operator ++() {
-            std::unique_lock guard(node_->Mutex_);
-            node_=node_->next;
+            std::unique_lock<std::mutex> lock(node->Mutex_);
+            node = node->next;
             return *this;
         }
 
         Iterator operator ++(int) {
-            std::unique_lock guard(node_->Mutex_);
+            std::unique_lock<std::mutex> lock(node->Mutex_);
             Iterator tmp = *this;
             ++(*this);
             return tmp;
         }
 
         Iterator& operator --() {
-            std::unique_lock guard(node_->Mutex_);
-            node_ =node_->prev;
+            std::unique_lock<std::mutex> lock(node->Mutex_);
+            node= node->prev;
             return *this;
         }
 
         Iterator operator --(int) {
-            std::unique_lock guard(node_->Mutex_);
+            std::unique_lock<std::mutex> lock(node->Mutex_);
             Iterator tmp = *this;
             --(*this);
             return tmp;
         }
 
         bool operator ==(const Iterator& rhs) const {
-            // std::shared_lock guard(node_->Mutex_);
-            return node_ == rhs.node_;
+            return node == rhs.node;
         }
 
         bool operator !=(const Iterator& rhs) const {
-            //std::shared_lock guard(node_->Mutex_);
-
-            return node_!=rhs.node_;
+            return node!=rhs.node;
         }
-        Node<T>* GetCurrentNode() {
-            return  node_;
+        TNode<T>* Get() {
+            std::unique_lock<std::mutex> lock(node->Mutex_);
+            return node;
         }
-
 
     private:
-        Node<T>* node_;
+        TNode<T>* node;
     };
 
     /*
@@ -114,7 +107,7 @@ public:
      */
     Iterator begin() {
         if(Head!= nullptr){
-            std::lock_guard g(Head->Mutex_);
+            std::unique_lock<std::mutex> lock(Head->Mutex_);
             return Iterator(Head);}
         else
             return Iterator(nullptr);
@@ -124,85 +117,61 @@ public:
      * Получить итератор, указывающий на "элемент после последнего" элемента в списке
      */
     Iterator end() {
-        //std::lock_guard gg(M_);
-        if(Tail == nullptr)
+        if(Tail!= nullptr){
+            std::unique_lock<std::mutex> lock(Tail->Mutex_);
+            return Iterator(Tail);}
+        else
             return Iterator(nullptr);
-        else{
-            std::lock_guard g(Tail->Mutex_);
-            return Iterator(Tail->next);
-        }
     }
 
     /*
      * Вставить новый элемент в список перед элементом, на который указывает итератор `position`
      */
     void insert(Iterator position, const T& value) {
-        std::lock_guard g(M_);
-        Node<T>* cur;
-        if(position != nullptr and position.GetCurrentNode()->prev!=Tail)
-            cur = position.GetCurrentNode();
-        else
-            cur = nullptr;
-        if(cur!= nullptr){
-            std::lock_guard gg(cur-> Mutex_);
-            if (cur == Head){ //вставка в начало
-                std::lock_guard g_Head(Head->Mutex_);
-                Node<T>* newNode = new Node<T>(nullptr, Head,value);
-                std::lock_guard g(newNode->Mutex_);
-                Head->prev = newNode;
-                Head = newNode;
+        if(Head == nullptr){ //список пустой
+            Tail = new TNode<T>();
+            std:: lock_guard<std::mutex> TailLock(Tail->Mutex_);
+            Head = new TNode<T>(nullptr,Tail, value);
+            std:: lock_guard<std::mutex> HeadLock(Head->Mutex_);
+            Tail->prev = Head;
+        }
+        else{
+            //вставка в начало
+            if(position == Head){
+                std:: lock_guard<std::mutex> HeadLock(Head->Mutex_);
+                TNode<T>* cur = new TNode<T>(nullptr, Head,value);
+                std:: lock_guard<std::mutex> CurrentLock(cur->Mutex_);
+                Head->prev = cur;
+                Head = cur;
             }
-            else{ //вставка в середину
-                std::lock_guard g_prev (cur->prev->Mutex_);
-                std::lock_guard g_next(cur->Mutex_);
-                Node<T>* newNode = new Node<T>(cur->prev, cur, value);
-                std::lock_guard g(newNode->Mutex_);
-                cur->prev->next = newNode;
-                cur->prev = newNode;
+                //вставка в середину или конец
+            else{
+
+                TNode<T>* curNode = position.Get();
+                std:: lock_guard<std::mutex>CurrentLock(curNode->Mutex_);
+                TNode<T>* newNode = new TNode<T>(curNode->prev, curNode, value);
+                std:: lock_guard<std::mutex>NewNodeLock(newNode->Mutex_);
+                curNode->prev->next = newNode;
+                curNode->prev = newNode;
             }
         }
-        else {
-            if(Head == nullptr){ //если список пустой
-                Node<T>* newNode = new Node<T>(nullptr, new Node<T>(),value);
-                std::lock_guard g (newNode->Mutex_);
-                Head = newNode;
-                Tail = newNode;
-                std::lock_guard gg(Tail->Mutex_);
-                //Tail->next = new Node<T>();
-                //Tail->next->prev = Tail;
-            }//вставка в конец
-            else {
-                std::lock_guard g_Tail(Tail->Mutex_);
-                Node<T> *newNode = new Node<T>(Tail, new Node<T>(), value);
-                std::lock_guard g(newNode->Mutex_);
-                Tail->next = newNode;
-                Tail = newNode;
-                std::lock_guard gg(Tail->Mutex_);
-                //Tail->next = new Node<T>();
-                //Tail->next->prev = Tail;
-
-            }
-        }
-
     }
 
     /*
      * Стереть из списка элемент, на который указывает итератор `position`
      */
     void erase(Iterator position) {
-        std::lock_guard g(M_);
-        auto cur = position.GetCurrentNode();
-        if(cur == Head and Head!= nullptr){ //удаляем из начала
+        TNode<T>* curNode = position.Get();
+        std::lock_guard<std::mutex> lock(curNode->Mutex_);
+        //удаление из начала
+        if(curNode == Head){
             Head = Head->next;
             Head->prev = nullptr;
         }
-        else if(cur == Tail and Tail!= nullptr){//удаляем из конца
-            Tail = Tail->prev;
-            Tail->next = nullptr;
-        }
-        else if(Head!= nullptr and Tail!= nullptr){ //удаляем из середины
-            cur->next->prev = cur->prev;
-            cur->prev->next = cur->next;
+            //удаление из середины или конца
+        else{
+            curNode->prev->next = curNode->next;
+            curNode->next->prev = curNode->prev;
         }
     }
 };
