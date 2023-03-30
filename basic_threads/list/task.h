@@ -87,10 +87,12 @@ public:
         }
 
         bool operator ==(const Iterator& rhs) const {
+            std::unique_lock<std::mutex> lock(node->Mutex_);
             return node == rhs.node;
         }
 
         bool operator !=(const Iterator& rhs) const {
+            std::unique_lock<std::mutex> lock(node->Mutex_);
             return node!=rhs.node;
         }
         TNode<T>* Get() {
@@ -149,6 +151,7 @@ public:
 
                 TNode<T>* curNode = position.Get();
                 std:: lock_guard<std::mutex>CurrentLock(curNode->Mutex_);
+                std:: lock_guard<std::mutex>CurrentPrevLock(curNode->prev->Mutex_);
                 TNode<T>* newNode = new TNode<T>(curNode->prev, curNode, value);
                 std:: lock_guard<std::mutex>NewNodeLock(newNode->Mutex_);
                 curNode->prev->next = newNode;
@@ -165,11 +168,14 @@ public:
         std::lock_guard<std::mutex> lock(curNode->Mutex_);
         //удаление из начала
         if(curNode == Head){
+            std::lock_guard<std::mutex> Headlock(Head->Mutex_);
             Head = Head->next;
             Head->prev = nullptr;
         }
             //удаление из середины или конца
         else{
+            std::lock_guard<std::mutex> CurPrevlock(curNode->prev->Mutex_);
+            std::lock_guard<std::mutex> CurNextlock(curNode->next->Mutex_);
             curNode->prev->next = curNode->next;
             curNode->next->prev = curNode->prev;
         }
